@@ -16,12 +16,12 @@ DllEntry ENDP
 ; where to put your own functions in the DLL
 ;-------------------------------------------------------------------------
 
-MyProc1 PROC
+TestFunction PROC
 
 xor	eax,eax
 mov eax, 1
 ret
 
-MyProc1 endp
+TestFunction endp
 
 END

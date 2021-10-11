@@ -4,11 +4,14 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.31727.386
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp", "cpp\cpp.vcxproj", "{0AB2E30B-DF70-4BD8-B0A3-74BD45211562}"
-	ProjectSection(ProjectDependencies) = postProject
-		{990E54A3-4CCF-4806-9651-61B03D74FFFD} = {990E54A3-4CCF-4806-9651-61B03D74FFFD}
-	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "asm", "asm\asm.vcxproj", "{990E54A3-4CCF-4806-9651-61B03D74FFFD}"
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "app", "app\app.vcxproj", "{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}"
+	ProjectSection(ProjectDependencies) = postProject
+		{0AB2E30B-DF70-4BD8-B0A3-74BD45211562} = {0AB2E30B-DF70-4BD8-B0A3-74BD45211562}
+		{990E54A3-4CCF-4806-9651-61B03D74FFFD} = {990E54A3-4CCF-4806-9651-61B03D74FFFD}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -34,6 +37,14 @@ Global
 		{990E54A3-4CCF-4806-9651-61B03D74FFFD}.Release|x64.Build.0 = Release|x64
 		{990E54A3-4CCF-4806-9651-61B03D74FFFD}.Release|x86.ActiveCfg = Release|Win32
 		{990E54A3-4CCF-4806-9651-61B03D74FFFD}.Release|x86.Build.0 = Release|Win32
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Debug|x64.ActiveCfg = Debug|x64
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Debug|x64.Build.0 = Debug|x64
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Debug|x86.ActiveCfg = Debug|Win32
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Debug|x86.Build.0 = Debug|Win32
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Release|x64.ActiveCfg = Release|x64
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Release|x64.Build.0 = Release|x64
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Release|x86.ActiveCfg = Release|Win32
+		{355AB30F-48FF-4F6B-96CF-1ED3D4E3ADBE}.Release|x86.Build.0 = Release|Win32
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
