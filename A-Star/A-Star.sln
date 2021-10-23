@@ -4,6 +4,9 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 VisualStudioVersion = 16.0.31727.386
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cpp", "cpp\cpp.vcxproj", "{0AB2E30B-DF70-4BD8-B0A3-74BD45211562}"
+	ProjectSection(ProjectDependencies) = postProject
+		{990E54A3-4CCF-4806-9651-61B03D74FFFD} = {990E54A3-4CCF-4806-9651-61B03D74FFFD}
+	EndProjectSection
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "asm", "asm\asm.vcxproj", "{990E54A3-4CCF-4806-9651-61B03D74FFFD}"
 EndProject
