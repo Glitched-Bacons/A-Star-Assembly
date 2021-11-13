@@ -2,7 +2,7 @@
 #include <cmath>
 #include <unordered_map>
 
-#include "Structures/Vector.h"
+#include "Vector.h"
 
 namespace as
 {

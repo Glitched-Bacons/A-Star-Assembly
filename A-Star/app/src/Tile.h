@@ -9,11 +9,13 @@ public:
 	{
 		Nothing			= 0,
 		Obstacle		= 1,
-		Path			= 2,
+		Visited			= 2,
+		Unvisited		= 3,
+		Path			= 4,
 
 		// Actually not used in the export
-		StartingPoint	= 3,
-		EndingPoint		= 4
+		StartingPoint	= 5,
+		EndingPoint		= 6
 	};
 
 	Tile(Tile::Type typeOfTile, float sizeOfTile);
@@ -24,6 +26,6 @@ public:
 
 private:
 
-	Tile::Type tileType;
-	sf::RectangleShape shape;
+	Tile::Type mTileType;
+	sf::RectangleShape mShape;
 };

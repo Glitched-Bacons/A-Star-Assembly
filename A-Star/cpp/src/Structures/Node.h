@@ -22,7 +22,6 @@ public:
 	const Vec& getPosition() const;
 
 	float getCostTo(const Node& node) const;
-
 	bool operator==(const Node& rhs) const;
 
 private:

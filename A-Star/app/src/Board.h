@@ -10,6 +10,12 @@ namespace sf
 	class Event;
 }
 
+enum class Algorithm
+{
+	Cpp,
+	Asm
+};
+
 class Board
 {
 public:
@@ -21,24 +27,40 @@ public:
 	void draw(sf::RenderTarget& target, sf::RenderStates states) const;
 	void processEvent(const sf::Event& event);
 	void fixedUpdate(float deltaTime);
+	void updateMouse(sf::Vector2i mousePosition);
+	void updateImGui();
 
+private:
 	void setBoard(Array1D arrayBoard);
 	void setBoard(Array2D arrayBoard);
 
-	Array1D getArray1D() const;
-	Array2D getArray2D() const;
+	[[nodiscard]] Array1D getArray1D() const;
+	[[nodiscard]] Array2D getArray2D() const;
 
-	std::optional<sf::Vector2i> getStartingPoint() const;
-	std::optional<sf::Vector2i> getEndingPoint() const;
+	[[nodiscard]] std::optional<sf::Vector2i> getStartingPoint() const;
+	[[nodiscard]] std::optional<sf::Vector2i> getEndingPoint() const;
+	Tile& getTile(const sf::Vector2i mousePosition);
+
+	void refreshAlgorithmDisplay();
+	void imGuiSelectAlgorithm();
+	void imGuiDisplayMeasurements();
+	void refreshAStarAlgorithm();
 
 private:
 	const float mTileSize;
 	const int mWidth;
 	const int mHeight;
+	bool mShouldObstaclesBeRemoved = false;
+	Algorithm mCurrentlyShownAlgorithm;
 
-	Tile& getTile(const sf::Vector2i mousePosition);
-	std::vector<std::vector<std::unique_ptr<Tile>>> board;
+	std::vector<std::vector<std::unique_ptr<Tile>>> mBoard;
 
-	std::optional<sf::Vector2i> startingPoint;
-	std::optional<sf::Vector2i> endingPoint;
+	std::optional<sf::Vector2i> mStartingPoint;
+	std::optional<sf::Vector2i> mEndingPoint;
+
+	std::optional<Array2D> mLastAsmExecution;
+	std::optional<Array2D> mLastCppExecution;
+
+	std::vector<float> mTimeMeasurementsOfCpp;
+	std::vector<float> mTimeMeasurementsOfAsm;
 };

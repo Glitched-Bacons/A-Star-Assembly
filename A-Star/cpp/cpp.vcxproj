@@ -159,6 +159,7 @@ xcopy /y /e /d src\**.h ..\vendor\include\AStarCpp</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="src\AStar.cpp" />
+    <ClCompile Include="src\Board.cpp" />
     <ClCompile Include="src\Structures\Node.cpp" />
     <ClCompile Include="src\Structures\Vector.cpp" />
     <ClCompile Include="src\Structures\Vector2.cpp" />
@@ -166,6 +167,7 @@ xcopy /y /e /d src\**.h ..\vendor\include\AStarCpp</Command>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\AStar.h" />
+    <ClInclude Include="src\Board.h" />
     <ClInclude Include="src\Structures\Node.h" />
     <ClInclude Include="src\Structures\Vector.h" />
     <ClInclude Include="src\Structures\Vector2.h" />

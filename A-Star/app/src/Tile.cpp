@@ -5,38 +5,56 @@
 Tile::Tile(Tile::Type typeOfTile, float sizeOfTile)
 {
 	setTileType(typeOfTile);
-	shape.setOutlineColor(sf::Color::Black);
-	shape.setOutlineThickness(1.f);
-	shape.setSize(sf::Vector2f(sizeOfTile, sizeOfTile));
+	mShape.setOutlineColor(sf::Color::Black);
+	mShape.setOutlineThickness(1.f);
+	mShape.setSize(sf::Vector2f(sizeOfTile, sizeOfTile));
 }
 
 void Tile::setTileType(Tile::Type typeOfTile)
 {
-	tileType = typeOfTile;
+	mTileType = typeOfTile;
 
 	switch(typeOfTile)
 	{
 		case Type::Nothing:
 		{
-			shape.setFillColor(sf::Color::White);
+			mShape.setFillColor(sf::Color::White);
+		}
+		break;
+
+		case Type::Unvisited:
+		{
+			mShape.setFillColor(sf::Color(50, 50, 50));
+		}
+		break;
+
+		case Type::Visited:
+		{
+			mShape.setFillColor(sf::Color(50, 50, 100));
+		}
+		break;
+
+		case Type::Path:
+		{
+			mShape.setFillColor(sf::Color::Green);
 		}
 		break;
 
 		case Type::StartingPoint:
 		{
-			shape.setFillColor(sf::Color::Yellow);
+			mShape.setFillColor(sf::Color::Yellow);
 		}
 		break;
 
 		case Type::EndingPoint:
 		{
-			shape.setFillColor(sf::Color::Magenta);
+			mShape.setFillColor(sf::Color::Magenta);
 		}
 		break;
 
 		case Type::Obstacle:
 		{
-			shape.setFillColor(sf::Color::Black);
+			mShape.setFillColor(sf::Color::Black);
 		}
 		break;
 	}
@@ -44,15 +62,15 @@ void Tile::setTileType(Tile::Type typeOfTile)
 
 Tile::Type Tile::getTileType() const
 {
-	return tileType;
+	return mTileType;
 }
 
 void Tile::setPosition(sf::Vector2f position)
 {
-	shape.setPosition(position);
+	mShape.setPosition(position);
 }
 
 void Tile::draw(sf::RenderTarget& target, sf::RenderStates states) const
 {
-	target.draw(shape, states);
+	target.draw(mShape, states);
 }

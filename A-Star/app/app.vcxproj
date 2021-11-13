@@ -152,6 +152,8 @@
     <ClCompile Include="..\vendor\src\imgui\imgui_draw.cpp" />
     <ClCompile Include="..\vendor\src\imgui\imgui_tables.cpp" />
     <ClCompile Include="..\vendor\src\imgui\imgui_widgets.cpp" />
+    <ClCompile Include="..\vendor\src\implot\implot.cpp" />
+    <ClCompile Include="..\vendor\src\implot\implot_items.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\Board.cpp" />
