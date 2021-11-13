@@ -11,7 +11,8 @@ namespace as
 class Board
 {
 public:
-	Board(std::vector<std::vector<int>> map, Vector2<int> startingPoint, Vector2<int> finalPoint, Distance distanceAlgorithm);
+	Board(std::vector<std::vector<int>> map, Vector2<int> startingPoint, 
+		Vector2<int> finalPoint, Distance distanceAlgorithm);
 	std::vector<std::vector<int>> generatePath();
 
 private:

@@ -4,7 +4,8 @@
 #include <stdexcept>
 
 
-as::Board::Board(std::vector<std::vector<int>> map, Vector2<int> startingPoint, Vector2<int> finalPoint, Distance distanceAlgorithm)
+as::Board::Board(std::vector<std::vector<int>> map, Vector2<int> startingPoint, 
+	Vector2<int> finalPoint, Distance distanceAlgorithm)
 	: mStartingPoint(std::move(startingPoint))
 	, mFinalPoint(std::move(finalPoint))
 	, mMap(std::move(map))

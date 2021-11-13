@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <optional>
+#include <AStarCpp/AStar.h>
 
 #include "Tile.h"
 
@@ -27,7 +28,7 @@ public:
 	void draw(sf::RenderTarget& target, sf::RenderStates states) const;
 	void processEvent(const sf::Event& event);
 	void fixedUpdate(float deltaTime);
-	void updateMouse(sf::Vector2i mousePosition);
+	void updateMouse(const sf::Vector2i& mousePosition);
 	void updateImGui();
 
 private:
@@ -39,19 +40,23 @@ private:
 
 	[[nodiscard]] std::optional<sf::Vector2i> getStartingPoint() const;
 	[[nodiscard]] std::optional<sf::Vector2i> getEndingPoint() const;
-	Tile& getTile(const sf::Vector2i mousePosition);
+	Tile& getTile(const sf::Vector2i& mousePosition);
 
 	void refreshAlgorithmDisplay();
 	void imGuiSelectAlgorithm();
 	void imGuiDisplayMeasurements();
+	void imGuiSelectDistanceFunction();
 	void refreshAStarAlgorithm();
+	bool isPositionInBoard(const sf::Vector2i& clickedPosition);
 
 private:
 	const float mTileSize;
 	const int mWidth;
 	const int mHeight;
-	bool mShouldObstaclesBeRemoved = false;
+	bool mShouldObstaclesBeRemoved;
+
 	Algorithm mCurrentlyShownAlgorithm;
+	as::Distance mDistanceAlgorithm;
 
 	std::vector<std::vector<std::unique_ptr<Tile>>> mBoard;
 

@@ -1,5 +1,6 @@
 #include "Board.h"
 
+#include <iostream>
 #include <numeric>
 #include <imgui/imgui.h>
 #include <implot/implot.h>
@@ -13,6 +14,8 @@ Board::Board(int width, int height, float tileSize)
 	: mTileSize(tileSize)
 	, mWidth(width)
 	, mHeight(height)
+	, mShouldObstaclesBeRemoved(false)
+	, mDistanceAlgorithm(as::Distance::Manhattan)
 	, mCurrentlyShownAlgorithm(Algorithm::Cpp)
 {
 	mBoard.resize(mHeight);
@@ -54,11 +57,11 @@ void Board::refreshAStarAlgorithm()
 		auto ending = as::Vector2<int>(std::move(endingPoint.value().x), std::move(endingPoint.value().y));
 
 		sf::Clock clock;
-		auto foundPathCpp= as::findPath(getArray2D(), beginning, ending);
+		auto foundPathCpp= as::findPath(getArray2D(), beginning, ending, mDistanceAlgorithm);
 		mTimeMeasurementsOfCpp.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
 
 		clock.restart();
-		auto foundPathAsm = as::findPath(getArray2D(), beginning, ending);
+		auto foundPathAsm = as::findPath(getArray2D(), beginning, ending, as::Distance::Euclidean);
 		mTimeMeasurementsOfAsm.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
 
 		switch (mCurrentlyShownAlgorithm)
@@ -75,11 +78,23 @@ void Board::refreshAStarAlgorithm()
 	}
 }
 
+bool Board::isPositionInBoard(const sf::Vector2i& clickedPosition)
+{
+	if (clickedPosition.x < 0 || clickedPosition.y < 0 ||
+		clickedPosition.x >= mWidth * mTileSize || clickedPosition.y >= mHeight * mTileSize)
+		return false;
+	return true;
+}
+
 void Board::processEvent(const sf::Event& event)
 {
 	if (event.type == sf::Event::MouseButtonPressed)
 	{
+		// ignore clicks outside of board
 		auto clickedPosition = sf::Vector2i(event.mouseButton.x, event.mouseButton.y);
+		if (!isPositionInBoard(clickedPosition)) 
+			return;
+
 		auto& selectedTile = getTile(clickedPosition);
 
 		if (event.mouseButton.button == sf::Mouse::Left)
@@ -121,7 +136,7 @@ void Board::fixedUpdate(float deltaTime)
 
 }
 
-void Board::updateMouse(sf::Vector2i mousePosition)
+void Board::updateMouse(const sf::Vector2i& mousePosition)
 {
 	if(sf::Mouse::isButtonPressed(sf::Mouse::Middle))
 	{
@@ -316,19 +331,47 @@ void Board::imGuiDisplayMeasurements()
 	}
 }
 
+void Board::imGuiSelectDistanceFunction()
+{
+	static const char* labels[] = { "Euclidean", "Manhattan" };
+	if (ImGui::BeginCombo("Dist. Func.", labels[static_cast<int>(mDistanceAlgorithm)]))
+	{
+		for (int n = 0; n < IM_ARRAYSIZE(labels); n++)
+		{
+			const bool is_selected = (static_cast<int>(mDistanceAlgorithm) == n);
+			if (ImGui::Selectable(labels[n], is_selected))
+			{
+				mDistanceAlgorithm = static_cast<as::Distance>(n);
+				refreshAStarAlgorithm();
+			}
+
+			// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
+			if (is_selected)
+				ImGui::SetItemDefaultFocus();
+		}
+		ImGui::EndCombo();
+	}
+}
+
 void Board::updateImGui()
 {
 	imGuiDisplayMeasurements();
+	ImGui::Spacing();
 	ImGui::Separator();
+	ImGui::Spacing();
 	imGuiSelectAlgorithm();
 
-	// Select distance function buttons
-	// TODO ...
+	ImGui::Spacing();
+	ImGui::Separator();
+	ImGui::Spacing();
+	ImGui::TextWrapped("C++ algorithm additional settings");
+	imGuiSelectDistanceFunction();
+
 
 	ImGui::End();
 }
 
-Tile& Board::getTile(const sf::Vector2i mousePosition)
+Tile& Board::getTile(const sf::Vector2i& mousePosition)
 {
 	int tileIndexX = mousePosition.x / mTileSize;
 	int tileIndexY = mousePosition.y / mTileSize;
