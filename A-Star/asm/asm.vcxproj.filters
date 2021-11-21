@@ -9,9 +9,14 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <MASM Include="astar.asm" />
+    <None Include="mydll.def" />
+    <None Include="Node.inc">
+      <Filter>Header Files</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="mydll.def" />
+    <MASM Include="astar.asm">
+      <Filter>Source Files</Filter>
+    </MASM>
   </ItemGroup>
 </Project>

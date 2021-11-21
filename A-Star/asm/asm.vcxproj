@@ -23,6 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="mydll.def" />
+    <None Include="Node.inc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
@@ -143,6 +144,7 @@
       <EnableUAC>false</EnableUAC>
       <EntryPointSymbol>DllEntry</EntryPointSymbol>
       <ModuleDefinitionFile>mydll.def</ModuleDefinitionFile>
+      <LargeAddressAware>false</LargeAddressAware>
     </Link>
     <PostBuildEvent>
       <Command>xcopy /y  $(OutDir)\$(ProjectName).dll ..\vendor\lib\AStar</Command>

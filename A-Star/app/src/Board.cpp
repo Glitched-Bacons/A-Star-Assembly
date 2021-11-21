@@ -128,7 +128,6 @@ void Board::processEvent(const sf::Event& event)
 	{
 		refreshAStarAlgorithm();
 	}
-
 }
 
 void Board::fixedUpdate(float deltaTime)
@@ -366,7 +365,6 @@ void Board::updateImGui()
 	ImGui::Spacing();
 	ImGui::TextWrapped("C++ algorithm additional settings");
 	imGuiSelectDistanceFunction();
-
 
 	ImGui::End();
 }

@@ -61,6 +61,4 @@ private:
 	const int mHeightOfMap;
 	const int mWidthOfMap;
 };
-
-
 }
