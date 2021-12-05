@@ -1,34 +1,73 @@
 include Node.inc
 
 .data
-NODE_SIZE			equ			32
-GRID_SIDE_SIZE		equ			24				; Width of the grid
-GRID_SIZE			equ			576				; Size of grid
-DISTANCE			equ			10				; Distance from cell to cell in a regular grid
-DIAGONAL_DISTANCE	equ			14				; Distance from cell to cell diagonally
-open_list			NodeList	<>				; Distance from cell to cell diagonally
-node_list			NodeList	<>				; Distance from cell to cell diagonally
-neigbour_array		Node		8	dup (<>)
+NODE_SIZE           equ		28
+
+GRID_SIZE			dd		?
+GRID_WIDTH			dq		?
+UNVISITED_SIZE		dd		0
+
+source				Pos		<>
+destination			Pos		<>
+
+distanceArr			dd		14, 10, 14, 7, 10, 14, 10, 14, 8
+neigbourArray       Node	8    dup (<>)
+fCostValue			dd		8    dup (-1)
 
 .code
 
 DllEntry proc
-	mov	rax, 1
-	ret
+    mov    rax, 1
+    ret
 DllEntry endp
 
 init macro
-	xor r11, r11				; counter
-	xor r12, r12				; row_index
-	xor r13, r13				; col_index
+    xor r11, r11                ; Counter
+    xor r12, r12                ; row_index
+    xor r13, r13                ; col_index
+    mov r14, rcx                ; Store row and col position of source and destination points
 
-	mov r14, rcx				; store row and col position of source
-	mov r15, rdx				; store row and col position of destination
+	;lea r14, source.Pos.row
+	;mov [r14].Pos.row , ecx
 
-	mov rcx, GRID_SIZE			; initialization of loop L1: counter
-	mov rdx, offset open_list
-	mov rbx, offset node_list	; alternative is lea rbx, [node_list]
+	lea r14, source
+
+	;Initialization of source and destination
+	;=======================
+	mov rax, [rcx]
+	mov [r14].Pos.row , eax
+
+	mov rax, [rcx + 4]
+	mov [r14].Pos.col , eax
+
+	lea r14, destination
+
+	mov rax, [rcx + 8]
+	mov [r14].Pos.row , eax
+
+	mov rax, [rcx + 12]
+	mov [r14].Pos.col , eax
+	;=======================
+
+    mov GRID_WIDTH, rdx
+    imul rdx, rdx
+    mov [GRID_SIZE], edx
+
+    lea rbx, [neigbourArray]    ; Pointer to neigbourArray
 endm
+
+; Stores array's data element offset into REG.
+store_dword_offset macro REG, ROW_IDX, COL_IDX
+    xor  REG, REG
+	mov  REG, ROW_IDX		    ; rdi = row
+	imul REG, GRID_WIDTH	    ; rdi = width * row
+	add  REG, COL_IDX		    ; rdi = width * row + col
+    imul REG, NODE_SIZE
+endm
+
+traceFinalPathOnMap proc
+ret
+traceFinalPathOnMap endp
 
 ; A function that checks whether given node in 
 ; format(row, col) is a valid cell or not.
@@ -44,149 +83,173 @@ is_valid_node macro ROW, COL
 	jb  not_valid
 
 	; Check if row and column values are less than width of the grid
-	cmp ROW, GRID_SIDE_SIZE
+	cmp ROW, GRID_WIDTH
 	jae not_valid 
-	cmp COL, GRID_SIDE_SIZE
+	cmp COL, GRID_WIDTH
 	jae not_valid
 
 	mov eax, 1 ; Node is valid
 not_valid::
 endm
 
-is_destination_node macro ROW, COL
+is_destination_node proc
 	mov eax, 0 ; Node is not valid
 	
 	; Check if destination node is the same as current node
-	cmp ROW, [r15 + 12]
+	lea r15, destination
+
+	mov edx, [r15].Pos.row
+	cmp r10d, edx
 	jne not_equal
-	cmp COL, [r15 + 8]
+
+	mov edx, [r15].Pos.row
+	cmp r11d, edx
 	jne not_equal
 
 	mov eax, 1
-not_equal::
-endm
+not_equal:
+	ret
+is_destination_node endp
 
-are_input_points_valid macro SOURCE_REG, DESTINATION_REG
-	is_valid_node r10, r11				; check if the source node is not out of range
-	is_valid_node r12, r13				; check if the destination node is not out of range
-endm
+is_visited proc 
+	mov eax, 0 ; node is visited
+	cmp [r8][rsi].Node.isVisited, 1
+	je visited
 
-; Stores array's data element offset into REG.
-store_dword_offset macro REG, ROW_IDX, COL_IDX
-	XOR  REG, REG 
-	mov  REG, ROW_IDX		; rdi = row
-	imul REG, GRID_SIDE_SIZE		; rdi = width * row
-	add  REG, COL_IDX		; rdi = width * row + col
-	shl  REG, 2				; rdi = 4 * (width * row + col)
-endm
+	mov eax, 1 ;node is not visited
+	visited:
+	ret
+is_visited endp
 
-createNodeList proc
-L1:
-	; Check if the row or column index needs to be reset
-	cmp r13, GRID_SIDE_SIZE
-	jb no_col_reset
-	mov r13, 0
-	add r12, 1
-no_col_reset:
+is_blocked proc
+	mov eax, 0 ; Node is blocked
+	cmp [r8][rsi].Node.nType, 6
+	je blocked
 
-	cmp r12, GRID_SIDE_SIZE
-	jna no_row_reset
-	mov r12, 0
-no_row_reset:
+	mov eax, 1 ; Node is unblocked
+	blocked:
+	ret
+is_blocked endp
+
+get_minimum proc
+	xor rcx, rcx
+	xor rsi, rsi
+	xor rax, rax
+	xor r10, r10
+	xor r11, r11
+
+	mov ecx, UNVISITED_SIZE				; Counter
+
+	mov eax, [r9 + rcx * 4]
+	imul eax, NODE_SIZE
+	mov r10d, [r8][rax]					; The last element as the current smallest node
+	mov r11d, [r8][rax].Node.nType		; The smallest value 
+
+compare:
+	dec ecx
+	je exit
+
+	mov eax, [r9 + rcx * 4]
+	imul eax, NODE_SIZE
+
+	cmp [r8][rax].Node.isVisited, 1		; Check if the Node was visited
+	je compare							; If yes jump to next node
+
+	cmp [r8][rax].Node.nType, r11d		; Value to compare
+	jl change_smallest
+	jmp compare
 	
-	; Update counter
-	mov r11d, [rbx].NodeList.size_list
-	shl r11d, 5		; size of the list * NODE_SIZE
+change_smallest:
+	mov r10d, [r8][rax]
+	mov r11d, [r8][rax].Node.nType 
+	jmp compare
 
-	; Fill in the column and row in the structure
-	mov [rbx][r11].NodeList.node_array.position.col , r13d
-	mov [rbx][r11].NodeList.node_array.position.row , r12d
-
-	; Element_Address = [rcx + (col_index * row_size + row_index) * Element_Size]
-	store_dword_offset rdi, r12, r13
-	mov eax, [r8 + rdi]
-	mov [rbx][r11].NodeList.node_array.symbol, eax
-
-
-	; Increment col index
-	inc r13
-	inc [rbx].NodeList.size_list
-
-	loop L1
-ret
-createNodeList endp
-
-traceFinalPathOnMap proc
-ret
-traceFinalPathOnMap endp
+exit:
+	ret
+get_minimum endp
 
 ; On basis of parameter windows "C" Calling Convention I pass
 ; the first four pramaters as follows
-; source		-> RCX (Obj storing row (x) and col (y) coordinates)
-; destination	-> RDX (Obj storing row (x) and col (y) coordinates)
-; grid			-> R8 (1D Array)
+; source        -> RCX		(Obj storing row (x) and col (y) coordinates)
+; GRID_WIDTH    -> RDX		Width of one side of the input grid 
+; grid          -> R8		(Array of nodes)
+; openList      -> R9		(Array containning traversable nodes)
+
 aStarSearch proc
-	init
-	call createNodeList
+	xor rax, rax
+    init
 
-	; rdx -> open_list
-	; rbx -> node_list
+    ; Calcute the index of the node in the array
+	mov eax, source.Pos.row	; store row of source
+	mov edx, source.Pos.row	; store col of source
+    store_dword_offset rdi, rax, rdx
 
-	; Adding first node (source) to open list
-	mov eax, [r14 + 8]
-	mov [rdx].NodeList.node_array.position.col, eax
-	mov eax, [r14 + 12]
-	mov [rdx].NodeList.node_array.position.row, eax
-	inc [rdx].NodeList.size_list
+    ;Add to open list
+    mov [r9], rdi	; r9 -> openList
+	
 
+    inc UNVISITED_SIZE
 ; While open list is not empty, perform the pathfinding
 while_loop:
-	cmp [rdx].NodeList.size_list, 0						; The exit condition is when size_list is empty
-	je end_pathfinding
+	;Take a minimum from open list
+	call get_minimum
 
-	mov [rdx].NodeList.node_array.isVisited, 1			; Mark the node as visited
-	sub [rdx].NodeList.size_list, 1						; decrement the size of the list
+    cmp UNVISITED_SIZE, 0               ; The exit occurs when open list is empty
+    je end_pathfinding
 
-	; Generating all the 8 successor of this node
+    sub UNVISITED_SIZE, 1               ; Decrement the size of the unvisited nodes list
+    mov [r8][rdi].Node.isVisited, 1     ; Set the node as visited
+	
+    ; Generating all the 8 successor of this node
 	;	{-1,  1} {0,  1} {1,  1}
 	;	{-1,  0}         {1,  0}
 	;	{-1, -1} {0, -1} {1, -1}
 
-	mov r12d, [rdx].NodeList.node_array.position.row		; initial row_index
-	mov r13d, [rdx].NodeList.node_array.position.col		; initial col_index
-
-	; ----------- {-1,  1} ------------
-	mov r9, r12		; new row index
-	inc r9
-
-	mov r10, r13	; new col index
+   ; ----------- {-1,  1} ------------
+	mov r10d, [r8][rdi].Node.position.row 		; new row index
 	sub r10, 1
+
+	mov r11d, [r8][rdi].Node.position.col    	; new col index
+	inc r11
+	store_dword_offset rsi, r10, r11			; store new neighbour node offset in rsi
+
+	; Move the Node to neighbour array  
+    ;mov eax, [r8][rdi]
+    ;mov [rbx], eax		; rbx -> pointer to neigbourArray					
+
+	; Check if the current node is valid
+	is_valid_node r10, r11 
+	cmp eax, 0
+	je next_node
+
+		; If it is a destination, mark the current node symbol with 6 and end (EndingPoint)
+		call is_destination_node 
+		cmp eax, 0
+		je check_if_visited
+			;Backtrack to find a path from source -> destination
+			call traceFinalPathOnMap
+
+
+check_if_visited:
+	;Check if the node is already visited or if it is untraversable
+	call is_visited
+	cmp eax, 0
+	je next_node
+
+	call is_blocked
+	cmp eax, 0
+	je next_node
+
 	
-	; If the current node is valid, check if it is a destination
-	is_valid_node r9, r10 
-	cmp eax, 1
-	je step2
-	; If it is a destination, mark the current node symbol with 6 and end (EndingPoint)
-		is_destination_node r9, r10 
-		cmp eax, 1
-		call traceFinalPathOnMap
-
-		je step2
-
-step2:
-
-	;store_dword_offset macro REG, ROW_IDX, COL_IDX
-	;XOR  REG, REG 
-	;mov  REG, ROW_IDX		; rdi = row
-	;imul REG, ROW_SIZE		; rdi = width * row
-	;add  REG, COL_IDX		; rdi = width * row + col
-	;shl  REG, 2			; rdi = 4 * (width * row + col)
 
 
+    
 
+
+next_node:
+	; ----------- {0,  1} ------------
 
 end_pathfinding:
-quit::
-	ret 
+	ret
 aStarSearch endp
 end

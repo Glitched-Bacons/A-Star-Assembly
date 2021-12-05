@@ -30,7 +30,6 @@ struct Vector2 : public Vector
 		auto distanceY = y - vec.y;
 		return std::sqrt(distanceX * distanceX + distanceY * distanceY);
 	}
-
 	bool operator==(const Vector2& rhs) const;
 	Vector2<int> operator+(const Vector2& offset) const;
 	bool operator!=(const Vector2& vector2) const;
@@ -61,7 +60,6 @@ bool Vector2<T>::operator!=(const Vector2& rhs) const
 using Vector2i = Vector2<int>;
 using Vector2f = Vector2<float>;
 
-
 } // namespace as
 
 namespace std
@@ -75,7 +73,6 @@ namespace std
 				^ (hash<T>()(k.y) << 1)) >> 1);
 		}
 	};
-
 }
 
 
