@@ -10,7 +10,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="mydll.def" />
-    <None Include="Node.inc">
+    <None Include="Structures.inc">
       <Filter>Header Files</Filter>
     </None>
   </ItemGroup>

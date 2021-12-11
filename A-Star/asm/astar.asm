@@ -1,255 +1,394 @@
-include Node.inc
+include Structures.inc
 
 .data
-NODE_SIZE           equ		28
+GRID_SIZE		dd          ?
+GRID_WIDTH		dd          ?
+CURR_NODES		dd          0
+CURR_NEIGHBOR	dd			0
 
-GRID_SIZE			dd		?
-GRID_WIDTH			dq		?
-UNVISITED_SIZE		dd		0
+source      Pos         <>
+destination Pos         <>
+newPos		Pos			<>
 
-source				Pos		<>
-destination			Pos		<>
+int64 dq ?
+squareRoot dd ?
 
-distanceArr			dd		14, 10, 14, 7, 10, 14, 10, 14, 8
-neigbourArray       Node	8    dup (<>)
-fCostValue			dd		8    dup (-1)
+nodeType    TypeNode    <>
+distances	dd			14, 10, 14, 10, 10, 14, 10, 14
+positions	Pos <-1,1>,  <0,1>, <1,1>, <-1,0>, <1,0>, <-1,-1>, <0,-1>, <1,-1>
+
 
 .code
-
 DllEntry proc
     mov    rax, 1
     ret
 DllEntry endp
 
 init macro
-    xor r11, r11                ; Counter
-    xor r12, r12                ; row_index
-    xor r13, r13                ; col_index
-    mov r14, rcx                ; Store row and col position of source and destination points
+    ; Assign width
+    mov rax, [r9]
+    mov [GRID_WIDTH], eax
+    mov [GRID_SIZE], eax
 
-	;lea r14, source.Pos.row
-	;mov [r14].Pos.row , ecx
-
-	lea r14, source
-
-	;Initialization of source and destination
-	;=======================
-	mov rax, [rcx]
-	mov [r14].Pos.row , eax
-
-	mov rax, [rcx + 4]
-	mov [r14].Pos.col , eax
-
-	lea r14, destination
-
-	mov rax, [rcx + 8]
-	mov [r14].Pos.row , eax
-
-	mov rax, [rcx + 12]
-	mov [r14].Pos.col , eax
-	;=======================
-
-    mov GRID_WIDTH, rdx
-    imul rdx, rdx
-    mov [GRID_SIZE], edx
-
-    lea rbx, [neigbourArray]    ; Pointer to neigbourArray
+    ; Calculate size of the grid
+    mov rax, [r9 + 4]
+    imul eax, [GRID_WIDTH]
+    mov [GRID_SIZE], eax
 endm
 
-; Stores array's data element offset into REG.
-store_dword_offset macro REG, ROW_IDX, COL_IDX
-    xor  REG, REG
-	mov  REG, ROW_IDX		    ; rdi = row
-	imul REG, GRID_WIDTH	    ; rdi = width * row
-	add  REG, COL_IDX		    ; rdi = width * row + col
-    imul REG, NODE_SIZE
-endm
+getLowestUnvisitedNode proc
+	; Initialize counter
+	mov ebx, [CURR_NODES] 
+	; Set lowest cost node as nullptr
+	mov r10, 0
 
-traceFinalPathOnMap proc
+compare:
+	cmp ebx, 0
+	je all_nodes_checked
+
+	dec ebx
+
+	;Get index of current node
+	mov rax, rbx
+	shl rax, 5
+	lea r12, [rdx][rax].Node ; Pointer to node
+
+	mov edi, [r12].Node.fCost
+	; Check if the Node was visited
+	cmp [r12].Node.isVisited , 1 
+	je compare
+
+		; Check if lowest unvisited node is nullptr
+		cmp r10, 0 
+		jne not_nullptr
+		jmp change_smallest
+
+	not_nullptr:
+		; Check if the current node has lower value than current lowest
+		mov r11d, [r10].Node.fCost
+		; Compare current node with lowest cost node
+		cmp [r12].Node.fCost, r11d 
+		jl change_smallest
+		jmp compare
+
+	change_smallest:
+		;Change lowest cost node to current node
+		mov r10, r12
+		mov eax, [r10].Node.fCost
+		jmp compare
+
+all_nodes_checked:
 ret
-traceFinalPathOnMap endp
+getLowestUnvisitedNode endp
 
-; A function that checks whether given node in 
-; format(row, col) is a valid cell or not.
+getNodeInto macro reg
+	; Set counter
+	mov eax, -1
+	; Set node as nullptr
+	mov r11, 0
+	; Get both x and y positions of the new node
+	mov edi, [rbx].Pos.x
+	mov esi, [rbx].Pos.y
+
+checkNextNode::
+	cmp [CURR_NODES], eax
+	je endSearch
+
+	inc eax
+	mov r14d, eax
+	shl r14, 5
+
+	cmp [rdx][r14].Node.position.x, edi
+	jne checkNextNode
+	cmp [rdx][r14].Node.position.y, esi
+	jne checkNextNode
+
+	; If the two positions are equal return node
+	lea r11, [rdx][rax].Node
+	je endSearch
+
+endSearch::
+endm
+
+getEuclideanDistance macro posFrom, posTo
+	xor rax, rax
+	mov eax, [posFrom].Pos.x		; Current node's x
+	sub eax, [posTo + 8]			; Current node's x - Destination x
+	imul eax, eax					; Current node's x * Current node's x
+
+	mov edi, [posFrom].Pos.y		; Current node's y
+	sub edi, [posTo + 12]			; Current node's y - Destination y
+	imul edi, edi					; Current node's y * Current node's y
+
+	add eax, edi					; Current node's y + Current node's x
+
+	mov int64, rax
+
+	fild int64
+	fsqrt							; sqrt(Current node's y + Current node's x)
+	fistp squareRoot  
+
+	mov eax, squareRoot
+	imul eax, 10
+endm
+
+addNodeInto macro reg, currentNode, posFrom, posTo, distanceToAdd
+	; Calculate the offset in the nodes array
+	mov esi, CURR_NODES
+	shl esi, 5
+
+	; Calculate the distanceTillEnd
+	getEuclideanDistance rbx, r8
+	mov [rdx][rsi].Node.distanceTillEnd, eax
+
+	; Calculate the new value of distanceSinceBeginning 
+	mov edi, [r10].Node.distanceSinceBeginning
+	add edi, r13d
+	mov [rdx][rsi].Node.distanceSinceBeginning, edi
+
+	; Store the value of fCost 
+	add eax, edi	; distanceTillEnd + distanceSinceBeginning
+	mov [rdx][rsi].Node.fCost, eax
+
+	mov eax, [rbx]
+	mov [rdx][rsi].Node.position.x, eax
+	mov eax, [rbx + 4]
+	mov [rdx][rsi].Node.position.y, eax
+	mov [rdx][rsi].Node.isVisited, 0
+	lea rax, [r10].Node
+	mov [rdx][rsi].Node.parent, rax
+
+	; Mark the proper position in border array as Unvisited
+	getIndexInto eax, [rbx].Pos
+	mov edi, [nodeType].TypeNode.Unvisited
+	mov [rcx + rax], edi
+
+	; Get the ptr to newly added  node
+	lea r11, [rdx][rsi].Node
+
+	inc CURR_NODES
+endm
+
+getIndexInto macro reg, position
+	local invalid_index
+	local valid_index
+	local end_macro
+
+	; If x < 0
+	cmp position.Pos.x, 0
+	jl invalid_index
+	; If y < 0
+	cmp position.Pos.y, 0
+	jl invalid_index
+
+	;If everything is OK calculate index
+	jmp valid_index
+
+invalid_index::
+	;Indicate index as invalid and end macro
+	mov reg, -1
+	jmp end_macro
+
+valid_index::
+	;Index calculation
+	mov		reg, GRID_WIDTH
+	imul	reg, position.Pos.y
+	add		reg, position.Pos.x
+end_macro::
+endm
+
+performBacktracing proc
+	lea rdi, [r10].Node
+check_next_node:
+	; Break when the current node's is equal its parent
+	cmp rdi, [r10].Node.parent
+	je finished_backtracking
+
+	; Mark the proper position in border array as a path
+	getIndexInto eax, [rdi].Node.position
+	mov esi, [nodeType].TypeNode.Path
+	mov [rcx + rax], esi
+
+	; As a current node set its parent
+	mov rdi, [rdi].Node.parent			 ; RISKY! TO DEBUG!!!!!!
+	jmp check_next_node
+
+finished_backtracking:
+ret
+performBacktracing endp
+
+isDestinationNode macro position
+	; Node is not a destination
+	mov eax, 0 
+	
+	; Check if destination node is the same as current node
+	mov rdi, [r8 + 8]			; Destination xPos
+	cmp position.Pos.x, edi		; Current Node xPos
+	jne not_destination
+
+	mov rdi, [r8 + 12]			; Destination yPos
+	cmp position.Pos.y, edi		; Current Node yPos
+	jne not_destination
+
+	mov eax, 1
+not_destination::
+endm
+
+; A function that checks whether given node is valid
 ;
 ; @return true if row and column number is in range
-is_valid_node macro ROW, COL
+isInBorder macro nodeIndex
 	mov eax, 0 ; Node is not valid
 
-	; Check if row and column values are bigger than zero
-	cmp ROW, 0
-	jb  not_valid
-	cmp COL, 0
+	; Check if node index value is bigger than zero
+	cmp nodeIndex, 0
 	jb  not_valid
 
-	; Check if row and column values are less than width of the grid
-	cmp ROW, GRID_WIDTH
+
+	; Check if node index value is less than grid size
+	cmp nodeIndex, [GRID_SIZE]
 	jae not_valid 
-	cmp COL, GRID_WIDTH
-	jae not_valid
 
 	mov eax, 1 ; Node is valid
 not_valid::
 endm
 
-is_destination_node proc
-	mov eax, 0 ; Node is not valid
-	
-	; Check if destination node is the same as current node
-	lea r15, destination
+isNotObstacle macro nodeIndex
+	mov eax, 0 ; Node is obstacle
 
-	mov edx, [r15].Pos.row
-	cmp r10d, edx
-	jne not_equal
+	mov edi, [nodeType].TypeNode.Obstacle
+	cmp [rcx + nodeIndex], edi
+	je is_not_obstacle
 
-	mov edx, [r15].Pos.row
-	cmp r11d, edx
-	jne not_equal
+	mov eax, 1 ; Node is not an obstacle
+is_not_obstacle::
+endm
 
-	mov eax, 1
-not_equal:
-	ret
-is_destination_node endp
+calculateNewPositionInto macro reg, currNodePos, offsetPos
+	mov reg, [currNodePos].Pos.x
+	add reg, [offsetPos].Pos.x
 
-is_visited proc 
-	mov eax, 0 ; node is visited
-	cmp [r8][rsi].Node.isVisited, 1
-	je visited
+	mov reg, [currNodePos].Pos.y
+	add reg, [offsetPos].Pos.y
+endm
 
-	mov eax, 1 ;node is not visited
-	visited:
-	ret
-is_visited endp
-
-is_blocked proc
-	mov eax, 0 ; Node is blocked
-	cmp [r8][rsi].Node.nType, 6
-	je blocked
-
-	mov eax, 1 ; Node is unblocked
-	blocked:
-	ret
-is_blocked endp
-
-get_minimum proc
-	xor rcx, rcx
-	xor rsi, rsi
-	xor rax, rax
-	xor r10, r10
-	xor r11, r11
-
-	mov ecx, UNVISITED_SIZE				; Counter
-
-	mov eax, [r9 + rcx * 4]
-	imul eax, NODE_SIZE
-	mov r10d, [r8][rax]					; The last element as the current smallest node
-	mov r11d, [r8][rax].Node.nType		; The smallest value 
-
-compare:
-	dec ecx
-	je exit
-
-	mov eax, [r9 + rcx * 4]
-	imul eax, NODE_SIZE
-
-	cmp [r8][rax].Node.isVisited, 1		; Check if the Node was visited
-	je compare							; If yes jump to next node
-
-	cmp [r8][rax].Node.nType, r11d		; Value to compare
-	jl change_smallest
-	jmp compare
-	
-change_smallest:
-	mov r10d, [r8][rax]
-	mov r11d, [r8][rax].Node.nType 
-	jmp compare
-
-exit:
-	ret
-get_minimum endp
-
-; On basis of parameter windows "C" Calling Convention I pass
-; the first four pramaters as follows
-; source        -> RCX		(Obj storing row (x) and col (y) coordinates)
-; GRID_WIDTH    -> RDX		Width of one side of the input grid 
-; grid          -> R8		(Array of nodes)
-; openList      -> R9		(Array containning traversable nodes)
-
+;void findPath(int* board, Node* nodes, Path path, BoardDimension boardDimension);
+; board             -> RCX  (Grid)
+; nodes             -> RDX  (Array of unvisited nodes)
+; path              -> r8   (Structure holding start and end point)
+; boardDimension    -> r9   (Width and height of the grid)
 aStarSearch proc
-	xor rax, rax
     init
 
-    ; Calcute the index of the node in the array
-	mov eax, source.Pos.row	; store row of source
-	mov edx, source.Pos.row	; store col of source
-    store_dword_offset rdi, rax, rdx
+    ; Put the starting source node in the array of nodes
+    mov rax, [r8].Pos
+    mov [rdx][0].Node.position, rax
+    mov [rdx][0].Node.distanceTillEnd, 0
+    mov [rdx][0].Node.distanceSinceBeginning, 0
+    mov [rdx][0].Node.fCost, 0
+    mov [rdx][0].Node.isVisited, 0
 
-    ;Add to open list
-    mov [r9], rdi	; r9 -> openList
-	
+	; Set yourself as a parent node
+	lea rax, [rdx][0].Node	
+	mov [rdx][0].Node.parent, rax
 
-    inc UNVISITED_SIZE
-; While open list is not empty, perform the pathfinding
-while_loop:
-	;Take a minimum from open list
-	call get_minimum
+	inc [CURR_NODES]
 
-    cmp UNVISITED_SIZE, 0               ; The exit occurs when open list is empty
-    je end_pathfinding
+; Process till all nodes will be visited 
+main_loop:
+    mov eax, [GRID_SIZE]
+    cmp [CURR_NODES], eax
+    je finishAlgorithm
 
-    sub UNVISITED_SIZE, 1               ; Decrement the size of the unvisited nodes list
-    mov [r8][rdi].Node.isVisited, 1     ; Set the node as visited
-	
-    ; Generating all the 8 successor of this node
-	;	{-1,  1} {0,  1} {1,  1}
-	;	{-1,  0}         {1,  0}
-	;	{-1, -1} {0, -1} {1, -1}
+	; Find lowest unvisited cost
+	call getLowestUnvisitedNode
+	; Set the current node with the lowest F cost as visited
+	mov [r10].Node.isVisited, 1
 
-   ; ----------- {-1,  1} ------------
-	mov r10d, [r8][rdi].Node.position.row 		; new row index
-	sub r10, 1
+	; Mark the proper position in border array as visited
+	getIndexInto eax, [r10].Node.position
+	mov edi, [nodeType].TypeNode.Visited
+	mov [rcx + rax], edi
 
-	mov r11d, [r8][rdi].Node.position.col    	; new col index
-	inc r11
-	store_dword_offset rsi, r10, r11			; store new neighbour node offset in rsi
-
-	; Move the Node to neighbour array  
-    ;mov eax, [r8][rdi]
-    ;mov [rbx], eax		; rbx -> pointer to neigbourArray					
-
-	; Check if the current node is valid
-	is_valid_node r10, r11 
+	; Check if path was found
+	isDestinationNode [r10].Node.position
 	cmp eax, 0
-	je next_node
-
-		; If it is a destination, mark the current node symbol with 6 and end (EndingPoint)
-		call is_destination_node 
-		cmp eax, 0
-		je check_if_visited
-			;Backtrack to find a path from source -> destination
-			call traceFinalPathOnMap
-
-
-check_if_visited:
-	;Check if the node is already visited or if it is untraversable
-	call is_visited
-	cmp eax, 0
-	je next_node
-
-	call is_blocked
-	cmp eax, 0
-	je next_node
-
+	je destination_not_found
+		; Backtrack until the parent node equals current node
+		call performBacktracing
+		jmp finishAlgorithm
 	
+destination_not_found:
+	; Iterate until all eight neighbours are checked
+	mov [CURR_NEIGHBOR], 0
+check_next_neighbour:
+	mov eax, [CURR_NEIGHBOR]
+	cmp eax, 8
+	jae main_loop
 
+	lea r12, positions
 
-    
+	; Calculate new position
+	lea rbx, newPos
 
+	; New x
+	mov edi, [r10].Node.position.x ; move currentNode's x position
+	add edi, [r12 + rax * 8].Pos.x 
+	mov [rbx].Pos.x, edi ; add to currentNode's x position a value from position array
+	mov esi,[rbx].Pos.x
 
-next_node:
-	; ----------- {0,  1} ------------
+	; New y
+	mov edi, [r10].Node.position.y ; move currentNode's x position
+	add edi, [r12 + rax * 8].Pos.y
+	mov [rbx].Pos.y, edi
+	mov edi,[rbx].Pos.y
 
-end_pathfinding:
-	ret
+	; Store distance to add
+	lea r15, distances
+	mov r13d, [r15 + rax * 4] ;distance to add
+	
+	getIndexInto r14d, [rbx].Pos
+
+	inc CURR_NEIGHBOR
+
+	; Check if node is in border range
+	isInBorder r14d
+	cmp eax, 0
+	je check_next_neighbour
+
+	;Check if it is not an obstacle
+	isNotObstacle r14
+	cmp eax, 0
+	je check_next_neighbour
+
+		; If it is not an obstacle nor is visited, continue
+		getNodeInto r11
+
+		cmp r11, 0
+		jne checkIfVisited
+		; If node is a nullptr add it to the nodes array and check next
+		addNodeInto r11, r10, rbx, r8, r13d
+
+	checkIfVisited:
+		; If node is visited check next neighbor
+		cmp [r11].Node.isVisited, 1
+		je check_next_neighbour
+		; Calculate new distance and compare it with an old one
+		mov eax, [r10].Node.distanceSinceBeginning
+		add eax, r13d	; distanceSinceBeginning of the current node + distanceToAdd
+		cmp eax, [r11].Node.distanceTillEnd
+		jae check_next_neighbour
+			mov [r11].Node.distanceSinceBeginning, eax
+			; Calculate new f Cost
+			add eax, [r11].Node.distanceTillEnd
+			mov [r11].Node.fCost, eax
+			; Set the current node as a parent of node
+			lea rax, [r10].Node
+			mov [r11].Node.parent, rax
+			jmp check_next_neighbour
+
+;Algorithm came to end
+finishAlgorithm:
+ret
 aStarSearch endp
 end

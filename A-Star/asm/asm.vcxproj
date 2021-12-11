@@ -23,7 +23,7 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="mydll.def" />
-    <None Include="Node.inc" />
+    <None Include="Structures.inc" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>
