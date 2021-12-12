@@ -124,6 +124,7 @@
       <ConformanceMode>true</ConformanceMode>
       <AdditionalIncludeDirectories>src;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
+      <DebugInformationFormat>OldStyle</DebugInformationFormat>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -138,6 +139,7 @@
     </PreLinkEvent>
     <PostBuildEvent>
       <Command>xcopy /y  $(OutDir)\$(TargetName).lib ..\vendor\lib\AStar
+xcopy /y  $(OutDir)\$(TargetName).pdb ..\vendor\lib\AStar
 xcopy /y /e /d src\**.h ..\vendor\include\AStarCpp</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>

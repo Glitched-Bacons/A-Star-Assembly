@@ -7,8 +7,42 @@
 #include <SFML/System/Clock.hpp>
 #include <SFML/Window/Event.hpp>
 #include <SFML/Window/Mouse.hpp>
+
+#include "DllLoader.h"
 #include "AStarCpp/AStar.h"
 
+
+namespace AsmStar
+{
+
+	struct Position
+	{
+		int x;
+		int y;
+	};
+
+	struct Node
+	{
+		Position position;
+		int distanceTillEnd;
+		int distanceSinceBeginning;
+		int fCost;
+		bool isVisited;
+		Node* parent;
+	};
+
+	struct Path
+	{
+		Position startPosition;
+		Position endPosition;
+	};
+
+	struct BoardDimension
+	{
+		int sizeX;
+		int sizeY;
+	};
+}
 
 Board::Board(int width, int height, float tileSize)
 	: mTileSize(tileSize)
@@ -56,24 +90,79 @@ void Board::refreshAStarAlgorithm()
 		auto beginning = as::Vector2<int>(std::move(startingPoint.value().x), std::move(startingPoint.value().y));
 		auto ending = as::Vector2<int>(std::move(endingPoint.value().x), std::move(endingPoint.value().y));
 
+
+		// make measurments
+
+		// Modern C++
+		auto array2D = getArray2D();
+
 		sf::Clock clock;
-		auto foundPathCpp= as::findPath(getArray2D(), beginning, ending, mDistanceAlgorithm);
+		auto foundPathCpp= as::findPath(array2D, beginning, ending, mDistanceAlgorithm);
 		mTimeMeasurementsOfCpp.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
+		std::cout << "C++: " << clock.getElapsedTime().asMicroseconds() << std::endl;
+
+		// C++03
+		auto array1D = getArray1D();
 
 		clock.restart();
-		auto foundPathAsm = as::findPath(getArray2D(), beginning, ending, as::Distance::Euclidean);
+		as::Node* nodes(new as::Node[array1D.size()]);
+		as::findPath(array1D.data(), nodes, as::Path{ {beginning.x, beginning.y}, {ending.x, ending.y} }, { mWidth, mHeight });
+		mTimeMeasurementsOfC.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
+
+		std::cout << "C: " << clock.getElapsedTime().asMicroseconds() << std::endl;
+
+		delete[] nodes;
+
+		// Assembler
+		auto testAsmFunction = loadDllFunction<void(int[], AsmStar::Node*, AsmStar::Path*, AsmStar::BoardDimension*)>(asmDll, "aStarSearch");
+
+		auto array1DAsm = getArray1D();
+		auto asmNodes = new AsmStar::Node[array1DAsm.size()];
+		auto path = new AsmStar::Path({ { beginning.x, beginning.y }, { ending.x, ending.y } });
+		auto boardDImensions = new AsmStar::BoardDimension({ mWidth, mHeight });
+
+		//testAsmFunction(array1DAsm.data(), asmNodes, path, boardDImensions);
+
+		delete[] asmNodes;
+		delete path;
+		delete boardDImensions;
+
+		array1DAsm = getArray1D();
+		path = new AsmStar::Path({ { beginning.x, beginning.y }, { ending.x, ending.y } });
+		boardDImensions = new AsmStar::BoardDimension({ mWidth, mHeight });
+
+		clock.restart();
+		asmNodes = new AsmStar::Node[array1DAsm.size()];
+		testAsmFunction(array1DAsm.data(), asmNodes, path, boardDImensions);
 		mTimeMeasurementsOfAsm.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
+
+		for (int index = 0; index < mHeight * mWidth; ++index)
+		{
+			if (index % mWidth == 0)
+				std::cout << std::endl;
+			std::cout << array1DAsm[index] << " ";
+		}
+		std::cout << std::endl;
+
+		std::cout << "Assembler: " << clock.getElapsedTime().asMicroseconds() << std::endl;
+		delete[] asmNodes;
+		delete path;
+		delete boardDImensions;
 
 		switch (mCurrentlyShownAlgorithm)
 		{
 		case Algorithm::Cpp:
 			setBoard(foundPathCpp);
 			break;
+		case Algorithm::C:
+			setBoard(array1D);
+			break;
 		case Algorithm::Asm:
-			setBoard(foundPathAsm);
+			setBoard(array1DAsm);
 			break;
 		}
-		mLastAsmExecution.emplace(std::move(foundPathAsm));
+		mLastAsmExecution.emplace(std::move(array1DAsm));
+		mLastCExecution.emplace(std::move(array1D));
 		mLastCppExecution.emplace(std::move(foundPathCpp));
 	}
 }
@@ -158,7 +247,7 @@ void Board::setBoard(Array1D arrayBoard)
 	{
 		for (int column = 0; column < mWidth; ++column)
 		{
-			auto& tileNumber = arrayBoard[row * 10 + column];
+			auto& tileNumber = arrayBoard[row * mWidth + column];
 			mBoard[row][column]->setTileType(static_cast<Tile::Type>(tileNumber));
 		}
 	}
@@ -178,7 +267,7 @@ void Board::setBoard(Array2D arrayBoard)
 
 typename Board::Array1D Board::getArray1D() const
 {
-	Array1D arrayBoard;
+	Array1D arrayBoard(mWidth * mHeight);
 
 	for (int row = 0; row < mHeight; ++row)
 	{
@@ -188,11 +277,11 @@ typename Board::Array1D Board::getArray1D() const
 			switch (tileType)
 			{
 			case Tile::Type::Obstacle:
-				arrayBoard[row * 10 + column] = static_cast<int>(tileType);
+				arrayBoard[row * mWidth + column] = static_cast<int>(tileType);
 				break;
 
 			default:
-				arrayBoard[row * 10 + column] = static_cast<int>(Tile::Type::Nothing);
+				arrayBoard[row * mWidth + column] = static_cast<int>(Tile::Type::Nothing);
 			}
 		}
 	}
@@ -253,7 +342,7 @@ std::optional<sf::Vector2i> Board::getEndingPoint() const
 
 void Board::refreshAlgorithmDisplay()
 {
-	if (mLastCppExecution.has_value() && mLastAsmExecution.has_value())
+	if (mLastCppExecution.has_value() && mLastAsmExecution.has_value() && mLastCExecution.has_value())
 	{
 		switch (mCurrentlyShownAlgorithm)
 		{
@@ -263,13 +352,16 @@ void Board::refreshAlgorithmDisplay()
 		case Algorithm::Asm:
 			setBoard(mLastAsmExecution.value());
 			break;
+		case Algorithm::C:
+			setBoard(mLastCExecution.value());
+			break;
 		}
 	}
 }
 
 void Board::imGuiSelectAlgorithm()
 {
-	static const char* labels[] = { "C++", "Assembler" };
+	static const char* labels[] = { "C++", "C", "Assembler" };
 	ImGui::TextWrapped("Select algorithm of which result should be displayed");
 	if (ImGui::BeginCombo("Algorithm", labels[static_cast<int>(mCurrentlyShownAlgorithm)]))
 	{
@@ -292,16 +384,18 @@ void Board::imGuiSelectAlgorithm()
 
 void Board::imGuiDisplayMeasurements()
 {
-	if (mTimeMeasurementsOfAsm.size() != mTimeMeasurementsOfCpp.size())
-		throw std::runtime_error("Asm and Cpp should have the same number of measurements");
+	if (mTimeMeasurementsOfAsm.size() != mTimeMeasurementsOfCpp.size() || mTimeMeasurementsOfAsm.size() != mTimeMeasurementsOfC.size())
+		throw std::runtime_error("Asm, C and Cpp should have the same number of measurements");
 
 	const auto noOfMeasurments = mTimeMeasurementsOfCpp.size();
 	std::vector<float> avgOfExecution;
 
-	if(!mTimeMeasurementsOfAsm.empty() && !mTimeMeasurementsOfCpp.empty())
+	if(!mTimeMeasurementsOfAsm.empty() && !mTimeMeasurementsOfCpp.empty() && !mTimeMeasurementsOfC.empty())
 	{
 		avgOfExecution.emplace_back(std::accumulate(mTimeMeasurementsOfCpp.cbegin(),
 		                        mTimeMeasurementsOfCpp.cend(), 0.0f) / noOfMeasurments);
+		avgOfExecution.emplace_back(std::accumulate(mTimeMeasurementsOfC.cbegin(),
+			mTimeMeasurementsOfC.cend(), 0.0f) / noOfMeasurments);
 		avgOfExecution.emplace_back(std::accumulate(mTimeMeasurementsOfAsm.cbegin(),
 		                        mTimeMeasurementsOfAsm.cend(), 0.0f) / noOfMeasurments);
 	}
@@ -316,15 +410,16 @@ void Board::imGuiDisplayMeasurements()
 		ImPlot::SetupAxes("Executions", "Times (ms)", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
 		ImPlot::PlotStems("C++", mTimeMeasurementsOfCpp.data() + dataOffset, numberOfValuesToDisplay);
 		ImPlot::PlotStems("ASM", mTimeMeasurementsOfAsm.data() + dataOffset, numberOfValuesToDisplay);
+		ImPlot::PlotStems("C", mTimeMeasurementsOfC.data() + dataOffset, numberOfValuesToDisplay);
 
 		ImPlot::EndPlot();
 	}
 
-	static const char* labels[] = { "C++", "Assembler" };
-	static const double positions[] = { 0,1 };
+	static const char* labels[] = { "C++", "C", "Assembler" };
+	static const double positions[] = { 0,1,2 };
 	if (ImPlot::BeginPlot("Average of all previous executions")) {
 		ImPlot::SetupAxes("Performance", "Times (ms)", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
-		ImPlot::SetupAxisTicks(ImAxis_X1, positions, 2, labels);
+		ImPlot::SetupAxisTicks(ImAxis_X1, positions, 3, labels);
 		ImPlot::PlotBars("", avgOfExecution.data(), avgOfExecution.size());
 		ImPlot::EndPlot();
 	}

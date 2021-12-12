@@ -144,6 +144,7 @@ addNodeInto macro reg, currentNode, posFrom, posTo, distanceToAdd
 	add edi, r13d
 	mov [rdx][rsi].Node.distanceSinceBeginning, edi
 
+	inc CURR_NODES
 	; Store the value of fCost 
 	add eax, edi	; distanceTillEnd + distanceSinceBeginning
 	mov [rdx][rsi].Node.fCost, eax

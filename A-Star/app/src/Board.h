@@ -14,6 +14,7 @@ namespace sf
 enum class Algorithm
 {
 	Cpp,
+	C,
 	Asm
 };
 
@@ -63,9 +64,11 @@ private:
 	std::optional<sf::Vector2i> mStartingPoint;
 	std::optional<sf::Vector2i> mEndingPoint;
 
-	std::optional<Array2D> mLastAsmExecution;
+	std::optional<Array1D> mLastAsmExecution;
 	std::optional<Array2D> mLastCppExecution;
+	std::optional<Array1D> mLastCExecution;
 
-	std::vector<float> mTimeMeasurementsOfCpp;
-	std::vector<float> mTimeMeasurementsOfAsm;
+	std::vector<double> mTimeMeasurementsOfCpp;
+	std::vector<double> mTimeMeasurementsOfC;
+	std::vector<double> mTimeMeasurementsOfAsm;
 };
