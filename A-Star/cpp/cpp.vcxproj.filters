@@ -30,7 +30,10 @@
     <ClCompile Include="src\AStar.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
-    <ClCompile Include="src\Board.cpp">
+    <ClCompile Include="src\AStarModernCpp.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AStarC.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
@@ -50,7 +53,10 @@
     <ClInclude Include="src\AStar.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="src\Board.h">
+    <ClInclude Include="src\AStarModernCpp.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AStarC.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

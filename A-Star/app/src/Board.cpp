@@ -10,6 +10,8 @@
 
 #include "DllLoader.h"
 #include "AStarCpp/AStar.h"
+#include "AStarCpp/AStarModernCpp.h"
+#include "AStarCpp/AStarC.h"
 
 
 namespace AsmStar
@@ -49,7 +51,7 @@ Board::Board(int width, int height, float tileSize)
 	, mWidth(width)
 	, mHeight(height)
 	, mShouldObstaclesBeRemoved(false)
-	, mDistanceAlgorithm(as::Distance::Manhattan)
+	, mDistanceAlgorithm(as::Distance::Euclidean)
 	, mCurrentlyShownAlgorithm(Algorithm::Cpp)
 {
 	mBoard.resize(mHeight);
@@ -97,7 +99,8 @@ void Board::refreshAStarAlgorithm()
 		auto array2D = getArray2D();
 
 		sf::Clock clock;
-		auto foundPathCpp= as::findPath(array2D, beginning, ending, mDistanceAlgorithm);
+		as::AStarModernCpp modernCpp(array2D, beginning, ending, mDistanceAlgorithm);
+		auto foundPathCpp = modernCpp.generatePath();
 		mTimeMeasurementsOfCpp.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
 		std::cout << "C++: " << clock.getElapsedTime().asMicroseconds() << std::endl;
 
@@ -105,8 +108,8 @@ void Board::refreshAStarAlgorithm()
 		auto array1D = getArray1D();
 
 		clock.restart();
-		as::Node* nodes(new as::Node[array1D.size()]);
-		as::findPath(array1D.data(), nodes, as::Path{ {beginning.x, beginning.y}, {ending.x, ending.y} }, { mWidth, mHeight });
+		as::AStarC::Node* nodes(new as::AStarC::Node[array1D.size()]);
+		as::AStarC::findPath(array1D.data(), nodes, as::AStarC::Path{ {beginning.x, beginning.y}, {ending.x, ending.y} }, { mWidth, mHeight });
 		mTimeMeasurementsOfC.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
 
 		std::cout << "C: " << clock.getElapsedTime().asMicroseconds() << std::endl;
@@ -120,16 +123,6 @@ void Board::refreshAStarAlgorithm()
 		auto asmNodes = new AsmStar::Node[array1DAsm.size()];
 		auto path = new AsmStar::Path({ { beginning.x, beginning.y }, { ending.x, ending.y } });
 		auto boardDImensions = new AsmStar::BoardDimension({ mWidth, mHeight });
-
-		//testAsmFunction(array1DAsm.data(), asmNodes, path, boardDImensions);
-
-		delete[] asmNodes;
-		delete path;
-		delete boardDImensions;
-
-		array1DAsm = getArray1D();
-		path = new AsmStar::Path({ { beginning.x, beginning.y }, { ending.x, ending.y } });
-		boardDImensions = new AsmStar::BoardDimension({ mWidth, mHeight });
 
 		clock.restart();
 		asmNodes = new AsmStar::Node[array1DAsm.size()];

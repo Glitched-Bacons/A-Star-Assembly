@@ -16,7 +16,7 @@ struct Vector2 : public Vector
 {
 	Vector2(T&& x, T&& y) : x(std::forward<T>(x)), y(std::forward<T>(y)) {}
 
-	float getManhattanDistanceTo(const Vector2& vec) const
+	T getManhattanDistanceTo(const Vector2& vec) const
 	{
 		auto distanceX = x - vec.x;
 		auto distanceY = y - vec.y;
@@ -24,7 +24,7 @@ struct Vector2 : public Vector
 			((distanceY >= 0) ? distanceY : -distanceY);
 	}
 
-	float getEuclideanDistanceTo(const Vector2& vec) const
+	T getEuclideanDistanceTo(const Vector2& vec) const
 	{
 		auto distanceX = x - vec.x;
 		auto distanceY = y - vec.y;
