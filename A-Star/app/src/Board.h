@@ -1,22 +1,26 @@
 #pragma once
 
+#include <map>
 #include <memory>
 #include <optional>
 #include <AStarCpp/AStar.h>
 
 #include "Tile.h"
+#include "ImguiDisplay/StatisticDisplayer.h"
+#include "Measurements/PerformanceMeasurer.h"
+
+namespace as
+{
+	namespace AstarModernCpp
+	{
+		enum class Distance;
+	}
+}
 
 namespace sf
 {
 	class Event;
 }
-
-enum class Algorithm
-{
-	Cpp,
-	C,
-	Asm
-};
 
 class Board
 {
@@ -41,12 +45,11 @@ private:
 
 	[[nodiscard]] std::optional<sf::Vector2i> getStartingPoint() const;
 	[[nodiscard]] std::optional<sf::Vector2i> getEndingPoint() const;
+
 	Tile& getTile(const sf::Vector2i& mousePosition);
+	[[nodiscard]] std::vector<AlgorithmMeasurments> getMeasurements();
 
 	void refreshAlgorithmDisplay();
-	void imGuiSelectAlgorithm();
-	void imGuiDisplayMeasurements();
-	void imGuiSelectDistanceFunction();
 	void refreshAStarAlgorithm();
 	bool isPositionInBoard(const sf::Vector2i& clickedPosition);
 
@@ -55,20 +58,17 @@ private:
 	const int mWidth;
 	const int mHeight;
 	bool mShouldObstaclesBeRemoved;
+	static constexpr int maxMeasurmentsDisplay = 10;
 
 	Algorithm mCurrentlyShownAlgorithm;
-	as::Distance mDistanceAlgorithm;
+	as::AstarModernCpp::Distance mDistanceAlgorithm;
 
 	std::vector<std::vector<std::unique_ptr<Tile>>> mBoard;
+	StatisticDisplayer statisticDisplayer;
 
 	std::optional<sf::Vector2i> mStartingPoint;
 	std::optional<sf::Vector2i> mEndingPoint;
 
-	std::optional<Array1D> mLastAsmExecution;
-	std::optional<Array2D> mLastCppExecution;
-	std::optional<Array1D> mLastCExecution;
-
-	std::vector<double> mTimeMeasurementsOfCpp;
-	std::vector<double> mTimeMeasurementsOfC;
-	std::vector<double> mTimeMeasurementsOfAsm;
+	std::multimap<Algorithm, sf::Time> mAlgorithmsExecutions;
+	std::map<Algorithm, AnyArray> mLastAlgorithmExecutions;
 };

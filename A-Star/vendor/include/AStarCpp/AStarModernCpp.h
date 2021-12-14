@@ -5,6 +5,19 @@
 #include "AStar.h"
 #include "Structures/Vector2.h"
 
+namespace as::AstarModernCpp
+{
+	enum class Distance
+	{
+		Euclidean,
+		Manhattan,
+
+		COUNTER
+	};
+
+	const char* toString(const Distance& distance);
+}
+
 namespace as
 {
 
@@ -12,7 +25,7 @@ class AStarModernCpp
 {
 public:
 	AStarModernCpp(std::vector<std::vector<int>> map, Vector2<int> startingPoint, 
-		Vector2<int> finalPoint, Distance distanceAlgorithm);
+		Vector2<int> finalPoint, AstarModernCpp::Distance distanceAlgorithm);
 	std::vector<std::vector<int>> generatePath();
 
 private:
@@ -45,7 +58,7 @@ private:
 	void checkNodesAround(const as::Vector2<int>& node, const ::as::AStarModernCpp::Cost& costOfNode);
 	void drawFinalPathOnMap(const Vector2<int>& lastNode);
 	void setNodeTypeOnMap(const Vector2<int>& node, Type type);
-	void selectDistanceAlgorithm(as::Distance distanceAlgorithm);
+	void selectDistanceAlgorithm(AstarModernCpp::Distance distanceAlgorithm);
 	as::Type getTypeFromMap(const Vector2<int>& node);
 
 private:

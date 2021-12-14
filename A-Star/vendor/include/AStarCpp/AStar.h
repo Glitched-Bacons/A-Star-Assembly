@@ -14,10 +14,4 @@ namespace as
 		StartingPoint = 5,
 		EndingPoint = 6
 	};
-
-	enum class Distance
-	{
-		Euclidean,
-		Manhattan
-	};
 }

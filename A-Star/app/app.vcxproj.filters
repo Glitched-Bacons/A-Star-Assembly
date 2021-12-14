@@ -22,6 +22,18 @@
     <Filter Include="Source Files\src">
       <UniqueIdentifier>{5ca6006b-b099-42f2-aca5-cbfac89e395f}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Source Files\Measurements">
+      <UniqueIdentifier>{1acae4e6-ba1d-45be-a2e5-98a88c34baef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files\ImguiDisplay">
+      <UniqueIdentifier>{446fd0a5-7cd6-48d7-8d2e-8f1b4cc607f0}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\Measurements">
+      <UniqueIdentifier>{f01860f0-1b3b-4380-beb3-985ad54e4104}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Header Files\ImguiDisplay">
+      <UniqueIdentifier>{bab52c2a-af8e-452a-a557-4ada01b6c950}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -57,6 +69,24 @@
     <ClCompile Include="..\vendor\src\implot\implot_items.cpp">
       <Filter>Source Files\imgui</Filter>
     </ClCompile>
+    <ClCompile Include="src\Measurements\AsmMeasurer.cpp">
+      <Filter>Source Files\Measurements</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Measurements\CMeasurer.cpp">
+      <Filter>Source Files\Measurements</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Measurements\CppMeasurer.cpp">
+      <Filter>Source Files\Measurements</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Measurements\PerformanceMeasurer.cpp">
+      <Filter>Source Files\Measurements</Filter>
+    </ClCompile>
+    <ClCompile Include="src\AnyArray.cpp">
+      <Filter>Source Files\src</Filter>
+    </ClCompile>
+    <ClCompile Include="src\ImguiDisplay\StatisticDisplayer.cpp">
+      <Filter>Source Files\ImguiDisplay</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="src\Application.h">
@@ -70,6 +100,27 @@
     </ClInclude>
     <ClInclude Include="src\DllLoader.h">
       <Filter>Header Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Measurements\AsmMeasurer.h">
+      <Filter>Header Files\Measurements</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Measurements\CMeasurer.h">
+      <Filter>Header Files\Measurements</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Measurements\CppMeasurer.h">
+      <Filter>Header Files\Measurements</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Measurements\PerformanceMeasurer.h">
+      <Filter>Header Files\Measurements</Filter>
+    </ClInclude>
+    <ClInclude Include="src\AnyArray.h">
+      <Filter>Header Files\src</Filter>
+    </ClInclude>
+    <ClInclude Include="src\ImguiDisplay\StatisticDisplayer.h">
+      <Filter>Header Files\ImguiDisplay</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Settings.h">
+      <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

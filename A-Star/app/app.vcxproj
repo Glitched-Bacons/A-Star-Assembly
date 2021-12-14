@@ -155,14 +155,27 @@
     <ClCompile Include="..\vendor\src\implot\implot.cpp" />
     <ClCompile Include="..\vendor\src\implot\implot_items.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="src\AnyArray.cpp" />
     <ClCompile Include="src\Application.cpp" />
     <ClCompile Include="src\Board.cpp" />
+    <ClCompile Include="src\ImguiDisplay\StatisticDisplayer.cpp" />
+    <ClCompile Include="src\Measurements\AsmMeasurer.cpp" />
+    <ClCompile Include="src\Measurements\CMeasurer.cpp" />
+    <ClCompile Include="src\Measurements\CppMeasurer.cpp" />
+    <ClCompile Include="src\Measurements\PerformanceMeasurer.cpp" />
     <ClCompile Include="src\Tile.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\AnyArray.h" />
     <ClInclude Include="src\Application.h" />
     <ClInclude Include="src\Board.h" />
     <ClInclude Include="src\DllLoader.h" />
+    <ClInclude Include="src\ImguiDisplay\StatisticDisplayer.h" />
+    <ClInclude Include="src\Measurements\AsmMeasurer.h" />
+    <ClInclude Include="src\Measurements\CMeasurer.h" />
+    <ClInclude Include="src\Measurements\CppMeasurer.h" />
+    <ClInclude Include="src\Measurements\PerformanceMeasurer.h" />
+    <ClInclude Include="src\Settings.h" />
     <ClInclude Include="src\Tile.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

@@ -5,7 +5,7 @@
 
 
 as::AStarModernCpp::AStarModernCpp(std::vector<std::vector<int>> map, Vector2<int> startingPoint, 
-	Vector2<int> finalPoint, Distance distanceAlgorithm)
+	Vector2<int> finalPoint, AstarModernCpp::Distance distanceAlgorithm)
 	: mStartingPoint(std::move(startingPoint))
 	, mFinalPoint(std::move(finalPoint))
 	, mMap(std::move(map))
@@ -15,14 +15,14 @@ as::AStarModernCpp::AStarModernCpp(std::vector<std::vector<int>> map, Vector2<in
 	selectDistanceAlgorithm(distanceAlgorithm);
 }
 
-void as::AStarModernCpp::selectDistanceAlgorithm(as::Distance distanceAlgorithm)
+void as::AStarModernCpp::selectDistanceAlgorithm(as::AstarModernCpp::Distance distanceAlgorithm)
 {
 	switch (distanceAlgorithm)
 	{
-	case Distance::Euclidean:
+	case AstarModernCpp::Distance::Euclidean:
 		mDistanceAlgorithm = [](const Vector2i& lhs, const Vector2i& rhs) { return lhs.getEuclideanDistanceTo(rhs); };
 		break;
-	case Distance::Manhattan:
+	case AstarModernCpp::Distance::Manhattan:
 		mDistanceAlgorithm = [](const Vector2i& lhs, const Vector2i& rhs) { return lhs.getManhattanDistanceTo(rhs); };
 		break;
 	}
@@ -187,4 +187,14 @@ void as::AStarModernCpp::setNodeTypeOnMap(const Vector2<int>& node, Type type)
 as::Type as::AStarModernCpp::getTypeFromMap(const Vector2<int>& node)
 {
 	return static_cast<Type>(mMap[node.x][node.y]);
+}
+
+const char* as::AstarModernCpp::toString(const Distance& distance)
+{
+	switch (distance)
+	{
+	case Distance::Euclidean: return "Euclidean";
+	case Distance::Manhattan: return "Manhattan";
+	default: return "No default";
+	}
 }

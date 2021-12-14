@@ -9,50 +9,24 @@
 #include <SFML/Window/Mouse.hpp>
 
 #include "DllLoader.h"
+#include "Settings.h"
 #include "AStarCpp/AStar.h"
 #include "AStarCpp/AStarModernCpp.h"
 #include "AStarCpp/AStarC.h"
+#include "ImguiDisplay/StatisticDisplayer.h"
+#include "Measurements/AsmMeasurer.h"
+#include "Measurements/CMeasurer.h"
+#include "Measurements/CppMeasurer.h"
 
 
-namespace AsmStar
-{
-
-	struct Position
-	{
-		int x;
-		int y;
-	};
-
-	struct Node
-	{
-		Position position;
-		int distanceTillEnd;
-		int distanceSinceBeginning;
-		int fCost;
-		bool isVisited;
-		Node* parent;
-	};
-
-	struct Path
-	{
-		Position startPosition;
-		Position endPosition;
-	};
-
-	struct BoardDimension
-	{
-		int sizeX;
-		int sizeY;
-	};
-}
 
 Board::Board(int width, int height, float tileSize)
 	: mTileSize(tileSize)
 	, mWidth(width)
 	, mHeight(height)
 	, mShouldObstaclesBeRemoved(false)
-	, mDistanceAlgorithm(as::Distance::Euclidean)
 	, mCurrentlyShownAlgorithm(Algorithm::Cpp)
+	, mDistanceAlgorithm(as::AstarModernCpp::Distance::Euclidean)
 {
 	mBoard.resize(mHeight);
 	for (auto& row : mBoard)
@@ -89,74 +63,27 @@ void Board::refreshAStarAlgorithm()
 	auto endingPoint = getEndingPoint();
 	if (startingPoint.has_value() && endingPoint.has_value())
 	{
-		auto beginning = as::Vector2<int>(std::move(startingPoint.value().x), std::move(startingPoint.value().y));
-		auto ending = as::Vector2<int>(std::move(endingPoint.value().x), std::move(endingPoint.value().y));
+		std::map<Algorithm, std::unique_ptr<PerformanceMeasurer>> algorithms;
 
+		as::AStarC::BoardDimension boardDimension{ mBoard[0].size(), mBoard.size() };
+		auto startingPoint = getStartingPoint().value();
+		auto endingPoint = getEndingPoint().value();
 
-		// make measurments
+		algorithms.emplace(Algorithm::Asm, 
+			std::make_unique<AsmMeasurer>(getArray1D(), startingPoint, endingPoint, boardDimension));
+		algorithms.emplace(Algorithm::C, 
+			std::make_unique<CMeasurer>(getArray1D(), startingPoint, endingPoint, boardDimension));
+		algorithms.emplace(Algorithm::Cpp, 
+			std::make_unique<CppMeasurer>(getArray2D(), startingPoint, endingPoint, mDistanceAlgorithm));
 
-		// Modern C++
-		auto array2D = getArray2D();
-
-		sf::Clock clock;
-		as::AStarModernCpp modernCpp(array2D, beginning, ending, mDistanceAlgorithm);
-		auto foundPathCpp = modernCpp.generatePath();
-		mTimeMeasurementsOfCpp.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
-		std::cout << "C++: " << clock.getElapsedTime().asMicroseconds() << std::endl;
-
-		// C++03
-		auto array1D = getArray1D();
-
-		clock.restart();
-		as::AStarC::Node* nodes(new as::AStarC::Node[array1D.size()]);
-		as::AStarC::findPath(array1D.data(), nodes, as::AStarC::Path{ {beginning.x, beginning.y}, {ending.x, ending.y} }, { mWidth, mHeight });
-		mTimeMeasurementsOfC.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
-
-		std::cout << "C: " << clock.getElapsedTime().asMicroseconds() << std::endl;
-
-		delete[] nodes;
-
-		// Assembler
-		auto testAsmFunction = loadDllFunction<void(int[], AsmStar::Node*, AsmStar::Path*, AsmStar::BoardDimension*)>(asmDll, "aStarSearch");
-
-		auto array1DAsm = getArray1D();
-		auto asmNodes = new AsmStar::Node[array1DAsm.size()];
-		auto path = new AsmStar::Path({ { beginning.x, beginning.y }, { ending.x, ending.y } });
-		auto boardDImensions = new AsmStar::BoardDimension({ mWidth, mHeight });
-
-		clock.restart();
-		asmNodes = new AsmStar::Node[array1DAsm.size()];
-		testAsmFunction(array1DAsm.data(), asmNodes, path, boardDImensions);
-		mTimeMeasurementsOfAsm.emplace_back(clock.getElapsedTime().asMicroseconds() / 1000.f);
-
-		for (int index = 0; index < mHeight * mWidth; ++index)
+		for(const auto& [algorithm, measurer] : algorithms)
 		{
-			if (index % mWidth == 0)
-				std::cout << std::endl;
-			std::cout << array1DAsm[index] << " ";
+			const auto& [time, resultArray] = measurer->measure();
+			mAlgorithmsExecutions.emplace(algorithm, time);
+			mLastAlgorithmExecutions[algorithm] = resultArray;
 		}
-		std::cout << std::endl;
 
-		std::cout << "Assembler: " << clock.getElapsedTime().asMicroseconds() << std::endl;
-		delete[] asmNodes;
-		delete path;
-		delete boardDImensions;
-
-		switch (mCurrentlyShownAlgorithm)
-		{
-		case Algorithm::Cpp:
-			setBoard(foundPathCpp);
-			break;
-		case Algorithm::C:
-			setBoard(array1D);
-			break;
-		case Algorithm::Asm:
-			setBoard(array1DAsm);
-			break;
-		}
-		mLastAsmExecution.emplace(std::move(array1DAsm));
-		mLastCExecution.emplace(std::move(array1D));
-		mLastCppExecution.emplace(std::move(foundPathCpp));
+		setBoard(mLastAlgorithmExecutions[mCurrentlyShownAlgorithm]);
 	}
 }
 
@@ -335,124 +262,59 @@ std::optional<sf::Vector2i> Board::getEndingPoint() const
 
 void Board::refreshAlgorithmDisplay()
 {
-	if (mLastCppExecution.has_value() && mLastAsmExecution.has_value() && mLastCExecution.has_value())
+	if (!mLastAlgorithmExecutions.empty())
 	{
-		switch (mCurrentlyShownAlgorithm)
-		{
-		case Algorithm::Cpp:
-			setBoard(mLastCppExecution.value());
-			break;
-		case Algorithm::Asm:
-			setBoard(mLastAsmExecution.value());
-			break;
-		case Algorithm::C:
-			setBoard(mLastCExecution.value());
-			break;
-		}
+		setBoard(mLastAlgorithmExecutions[mCurrentlyShownAlgorithm]);
 	}
 }
 
-void Board::imGuiSelectAlgorithm()
+std::vector<AlgorithmMeasurments> Board::getMeasurements()
 {
-	static const char* labels[] = { "C++", "C", "Assembler" };
-	ImGui::TextWrapped("Select algorithm of which result should be displayed");
-	if (ImGui::BeginCombo("Algorithm", labels[static_cast<int>(mCurrentlyShownAlgorithm)]))
+	std::vector<AlgorithmMeasurments> measurments;
+	for (auto beg = mAlgorithmsExecutions.begin(), end = mAlgorithmsExecutions.end();
+	     beg != end; beg = mAlgorithmsExecutions.upper_bound(beg->first))
 	{
-		for (int n = 0; n < IM_ARRAYSIZE(labels); n++)
-		{
-			const bool is_selected = (static_cast<int>(mCurrentlyShownAlgorithm) == n);
-			if (ImGui::Selectable(labels[n], is_selected))
-			{
-				mCurrentlyShownAlgorithm = static_cast<Algorithm>(n);
-				refreshAlgorithmDisplay();
-			}
+		AlgorithmMeasurments measurment;
+		const auto& algorithm = beg->first;
+		measurment.algorithmName = toString(algorithm);
 
-			// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-			if (is_selected)
-				ImGui::SetItemDefaultFocus();
-		}
-		ImGui::EndCombo();
+		const auto noOfMeasurments = static_cast<float>(mAlgorithmsExecutions.count(algorithm));
+
+		measurment.numberOfValuesToDisplay = (noOfMeasurments < maxMeasurmentsDisplay) ? noOfMeasurments : maxMeasurmentsDisplay;
+		measurment.dataOffset = (noOfMeasurments < maxMeasurmentsDisplay) ? 0 : noOfMeasurments - maxMeasurmentsDisplay;
+
+		auto timeElapsed = std::vector<float>();
+		std::transform(beg, mAlgorithmsExecutions.upper_bound(beg->first), std::back_inserter(timeElapsed),
+		               [](const auto& iterator)
+		               {
+			               return iterator.second.asMicroseconds() / 1000.0;
+		               });
+		measurment.timeElapsed = timeElapsed;
+		measurments.push_back(measurment);
 	}
-}
-
-void Board::imGuiDisplayMeasurements()
-{
-	if (mTimeMeasurementsOfAsm.size() != mTimeMeasurementsOfCpp.size() || mTimeMeasurementsOfAsm.size() != mTimeMeasurementsOfC.size())
-		throw std::runtime_error("Asm, C and Cpp should have the same number of measurements");
-
-	const auto noOfMeasurments = mTimeMeasurementsOfCpp.size();
-	std::vector<float> avgOfExecution;
-
-	if(!mTimeMeasurementsOfAsm.empty() && !mTimeMeasurementsOfCpp.empty() && !mTimeMeasurementsOfC.empty())
-	{
-		avgOfExecution.emplace_back(std::accumulate(mTimeMeasurementsOfCpp.cbegin(),
-		                        mTimeMeasurementsOfCpp.cend(), 0.0f) / noOfMeasurments);
-		avgOfExecution.emplace_back(std::accumulate(mTimeMeasurementsOfC.cbegin(),
-			mTimeMeasurementsOfC.cend(), 0.0f) / noOfMeasurments);
-		avgOfExecution.emplace_back(std::accumulate(mTimeMeasurementsOfAsm.cbegin(),
-		                        mTimeMeasurementsOfAsm.cend(), 0.0f) / noOfMeasurments);
-	}
-
-	static constexpr int maxValuesToDisplay = 10;
-
-	int numberOfValuesToDisplay = (noOfMeasurments < maxValuesToDisplay) ? noOfMeasurments : maxValuesToDisplay;
-	int dataOffset = (noOfMeasurments < maxValuesToDisplay) ? 0 : noOfMeasurments - maxValuesToDisplay;
-	ImGui::Begin("Measurments", 0, ImGuiWindowFlags_NoMove);
-	if (ImPlot::BeginPlot("Last 10 executions")) {
-		ImPlot::SetupAxisFormat(ImAxis_Y1, "%.2f");
-		ImPlot::SetupAxes("Executions", "Times (ms)", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
-		ImPlot::PlotStems("C++", mTimeMeasurementsOfCpp.data() + dataOffset, numberOfValuesToDisplay);
-		ImPlot::PlotStems("ASM", mTimeMeasurementsOfAsm.data() + dataOffset, numberOfValuesToDisplay);
-		ImPlot::PlotStems("C", mTimeMeasurementsOfC.data() + dataOffset, numberOfValuesToDisplay);
-
-		ImPlot::EndPlot();
-	}
-
-	static const char* labels[] = { "C++", "C", "Assembler" };
-	static const double positions[] = { 0,1,2 };
-	if (ImPlot::BeginPlot("Average of all previous executions")) {
-		ImPlot::SetupAxes("Performance", "Times (ms)", ImPlotAxisFlags_AutoFit, ImPlotAxisFlags_AutoFit);
-		ImPlot::SetupAxisTicks(ImAxis_X1, positions, 3, labels);
-		ImPlot::PlotBars("", avgOfExecution.data(), avgOfExecution.size());
-		ImPlot::EndPlot();
-	}
-}
-
-void Board::imGuiSelectDistanceFunction()
-{
-	static const char* labels[] = { "Euclidean", "Manhattan" };
-	if (ImGui::BeginCombo("Dist. Func.", labels[static_cast<int>(mDistanceAlgorithm)]))
-	{
-		for (int n = 0; n < IM_ARRAYSIZE(labels); n++)
-		{
-			const bool is_selected = (static_cast<int>(mDistanceAlgorithm) == n);
-			if (ImGui::Selectable(labels[n], is_selected))
-			{
-				mDistanceAlgorithm = static_cast<as::Distance>(n);
-				refreshAStarAlgorithm();
-			}
-
-			// Set the initial focus when opening the combo (scrolling + keyboard navigation focus)
-			if (is_selected)
-				ImGui::SetItemDefaultFocus();
-		}
-		ImGui::EndCombo();
-	}
+	return measurments;
 }
 
 void Board::updateImGui()
 {
-	imGuiDisplayMeasurements();
+	ImGui::Begin("Measurments", 0, ImGuiWindowFlags_NoMove);
+	statisticDisplayer.imGuiDisplayLastMeasurements(getMeasurements());
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
-	imGuiSelectAlgorithm();
+
+	auto beforeUpdateAlgorithm = mCurrentlyShownAlgorithm;
+	statisticDisplayer.imGuiUpdateSelectedAlgorithm(mCurrentlyShownAlgorithm);
+	if (beforeUpdateAlgorithm != mCurrentlyShownAlgorithm) refreshAlgorithmDisplay();
 
 	ImGui::Spacing();
 	ImGui::Separator();
 	ImGui::Spacing();
 	ImGui::TextWrapped("C++ algorithm additional settings");
-	imGuiSelectDistanceFunction();
+
+	auto beforeUpdateDistance = mDistanceAlgorithm;
+	statisticDisplayer.imGuiUpdateSelectedDistanceFunctionCpp(mDistanceAlgorithm);
+	if (beforeUpdateDistance != mDistanceAlgorithm) refreshAStarAlgorithm();
 
 	ImGui::End();
 }
