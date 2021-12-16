@@ -1,16 +1,20 @@
 include Structures.inc
 
 .data
-GRID_SIZE         dd          ?
-GRID_WIDTH        dd          ?
-CURR_NODES        dd          0
-CURR_NEIGHBOR     dd          0
+GRID_SIZE         dd          ?     ; Size of the board
+GRID_WIDTH        dd          ?     ; Width of the board
+CURR_NODES        dd          0     ; Counts number of neighboring nodes
+CURR_NEIGHBOR     dd          0     ; Counts number of current nodes
 
-newPos            Pos         <>
-temp              dd          ?
-squareRoot        dd          ?
+newPos            Pos         <>    ; Temporary stores new position of the neighbouring node
+squareRoot        dd          ?     ; Used as memory operand during sqrt calculations
+ZERO              dd          0     ; Used as memory operand in cmov instrcutions
 
+; Array conatining distances based on position of the node in a grid
 distancesToAdd    dd          14, 10, 14, 10, 10, 14, 10, 14
+
+; Array conatining x and y values ready to use during calculations 
+; of neighboring nodes positions
 positionsToAdd    Pos         <-1,1>,  <0,1>, <1,1>, <-1,0>, <1,0>, <-1,-1>, <0,-1>, <1,-1>
 
 .code
@@ -19,6 +23,8 @@ DllEntry proc
     ret
 DllEntry endp
 
+; At the beginning of the algorithm call, 
+; initialize the necessary variables
 init macro
     mov CURR_NODES, 0
 
@@ -32,10 +38,17 @@ init macro
     imul eax, [GRID_WIDTH]
     mov  [GRID_SIZE], eax
 
-    ; Store array of distances to add to each neighbor
+    ; Store array of distances
     lea r15, distancesToAdd
 endm
 
+; A function that search for the lowest f cost in an array of nodes.
+; It does this by simply iterating the array of nodes
+; comparing the cost of the selected current node
+; with the node with the lowest f cost.
+;
+; @param reg Register in which the pointer to the node is stored
+; @return The pointer to the node with the lowest f cost
 getLowestUnvisitedNodeInto macro reg
     ; Initialize counter
     mov ebx, -1
@@ -77,11 +90,18 @@ compare:
 all_nodes_checked:
 endm
 
+; Saves the node into a given register. The node 
+; is serached in nodes array based on its position.
+; If the node has not yet been added to the 
+; array then nullptr is returned.
+;
+; @param reg Register in which the pointer to the node is stored
+; @return The pointer to the node if it exists, otherwise nullptr
 getNodeInto macro reg
     ; Set counter
     mov eax, 0
     ; Set node as nullptr
-    mov r11, 0
+    mov reg, 0
     ; Get both x and y positions of the new node
     mov edi, [rbx].Pos.x
     mov esi, [rbx].Pos.y
@@ -90,6 +110,7 @@ checkNextNode::
     cmp [CURR_NODES], eax
     je endSearch
 
+    ; Calculate node's offset
     mov r14d, eax
     shl r14, 5
 
@@ -101,45 +122,60 @@ checkNextNode::
     jne checkNextNode
 
     ; If the two positions are equal return node
-    lea r11, [rdx][r14].Node
-    je endSearch
-
+    lea reg, [rdx][r14].Node
 endSearch::
 endm
 
+; Calculates Euclidean distance between two 
+; points in our case current node's position
+; and destination point.
+;
+; @param reg Register in which the distance is stored
+; @param posFrom Current node's position
+; @param posTo Destination node's position
 getEuclideanDistanceInto macro reg, posFrom, posTo
-    mov  reg, [rbx].Pos.x           ; xPosFrom
-    sub  reg, [posTo + 8]           ; xPosFrom - yPosTo
-    imul reg, reg                   ; xPosFrom * xPosFrom
+    mov  reg, [rbx].Pos.x       ; xPosFrom
+    sub  reg, [posTo + 8]       ; xPosFrom - xPosTo
+    imul reg, reg               ; xPosFrom * xPosFrom
 
-    mov  edi, [rbx].Pos.y           ; yPosFrom
-    sub  edi, [posTo + 12]          ; yPosFrom - xPosTo
-    imul edi, edi                   ; yPosFrom * yPosFrom
+    mov  edi, [rbx].Pos.y       ; yPosFrom
+    sub  edi, [posTo + 12]      ; yPosFrom - yPosTo
+    imul edi, edi               ; yPosFrom * yPosFrom
 
-    add  reg, edi                   ; yPosFrom + xPosFrom
+    add  reg, edi               ; yPosFrom + xPosFrom
 
-    mov   [temp], reg
-    fild  [temp]
-    fsqrt                           ; sqrt( yPosFrom + xPosFrom )
+    mov   [squareRoot], reg
+    fild  [squareRoot]
+    fsqrt                       ; sqrt( yPosFrom + xPosFrom )
     fistp squareRoot  
 
     mov  reg, squareRoot
     imul reg, 10
 endm
 
+; Adds current node into the unvisited nodes array.
+; Before that it performs distance calculations
+; The distance between current and destination node is
+; calculated using euclidean distance formula.
+;
+; @param reg Pointer to the newly added node
+; @param currentNode Current node used in distance calculations
+; @param posFrom Current node's position
+; @param posTo Current node's position
+; @param distanceToAdd Array conatining distances
 addNodeInto macro reg, currentNode, posFrom, posTo, distanceToAdd
     ; Calculate the offset in the nodes array
     mov esi, CURR_NODES
     shl esi, 5
     
     ; Calculate the distanceTillEnd
-    getEuclideanDistanceInto eax, rbx, r8
+    getEuclideanDistanceInto eax, posFrom, posTo
 
     mov [rdx][rsi].Node.distanceTillEnd, eax
 
     ; Calculate the new value of distanceSinceBeginning 
-    mov edi, [r10].Node.distanceSinceBeginning
-    add edi, r13d
+    mov edi, [currentNode].Node.distanceSinceBeginning
+    add edi, distanceToAdd
     mov [rdx][rsi].Node.distanceSinceBeginning, edi
 
     ; Store the value of fCost 
@@ -147,26 +183,31 @@ addNodeInto macro reg, currentNode, posFrom, posTo, distanceToAdd
     mov [rdx][rsi].Node.fCost, eax
 
     ; Set new positions
-    mov eax, [rbx].Pos.x
+    mov eax, [posFrom].Pos.x
     mov [rdx][rsi].Node.position.x, eax
-    mov eax, [rbx].Pos.y
+    mov eax, [posFrom].Pos.y
     mov [rdx][rsi].Node.position.y, eax
 
     mov [rdx][rsi].Node.isVisited, 0
-    lea rax, [r10].Node
+    lea rax, [currentNode].Node
     mov qword ptr [rdx][rsi].Node.parent, rax
 
     ; Mark the proper position in border array as Unvisited
-    getIndexInto edi, [rbx].Pos
+    getIndexInto edi, [posFrom].Pos
     mov eax, 3
     mov [rcx + rdi], eax
 
     ; Get the ptr to newly added node
-    lea r11, [rdx][rsi].Node
+    lea reg, [rdx][rsi].Node
 
     inc CURR_NODES
 endm
 
+; Calculates the index of the node based on 
+; its position.
+;
+; @param position Current node's position
+; @param reg Register in which the index is stored
 getIndexInto macro reg, position
     local invalid_index
     local valid_index
@@ -197,9 +238,13 @@ valid_index::
 end_macro::
 endm
 
+; Performs backtracking from the destination
+; to source point. The tracing of the path
+; is considered finished when the node's parent 
+; points to itself.
 performBacktracing macro
     lea rdi, [r10].Node
-    ; Store destination index for later usage
+    ; Store destination index for 
     getIndexInto r13d, [rdi].Node.position
 
 check_next_node:
@@ -217,7 +262,7 @@ check_next_node:
     jmp check_next_node
 
 finished_backtracking:
-    ; Mark in board array source (5) and destination (6) points
+    ; Mark in a board array source (5) and destination (6) points
     getIndexInto esi, [rdi].Node.position
     mov eax, 5
     mov [rcx + rsi], eax
@@ -225,61 +270,66 @@ finished_backtracking:
     mov [rcx + r13], eax
 endm
 
+; Function to check whether destination node 
+; has been reached or not.
+;
+; @param Current node's position
+; @return One in eax if node is a destination, otherwise zero
 isDestinationNode macro position
-    ; Node is not a destination
-    mov eax, 0 
+    ; Node is a destination
+    mov eax, 1
     
     ; Check if destination node is the same as current node
     mov rdi, [r8 + 8]            ; Destination xPos
-    cmp position.Pos.x, edi      ; Current Node xPos
-    jne not_destination
+    cmp position.Pos.x, edi      ; Cmp current node's xPos with destination's xPos
+    cmovne eax, [ZERO]
 
     mov rdi, [r8 + 12]           ; Destination yPos
-    cmp position.Pos.y, edi      ; Current Node yPos
-    jne not_destination
-
-    mov eax, 1
-not_destination::
+    cmp position.Pos.y, edi      ; Cmp current node's yPos with destination's yPos
+    cmovne eax, [ZERO]
 endm
 
-; A function that checks whether given node is valid
+; A macro that checks whether given node 
+; index is a valid one.
 ;
-; @return true if row and column number is in range
+; @param  Index of the node 
+; @return One in eax if node index is in range, otherwise zero
 isInBorder macro nodeIndex
-    ; Set node as not valid
-    mov eax, 0 
+    ; Set node as valid
+    mov eax, 1 
 
     ; Check if node's index value is bigger than zero
     cmp nodeIndex, 0
-    jb  not_valid
+    cmovb eax, [ZERO]
 
     ; Check if node index value is less than grid size
     mov edi, [GRID_SIZE]
     shl edi, 2
     cmp nodeIndex, edi
-    jae not_valid 
-
-    ; Set node as valid
-    mov eax, 1 
-not_valid::
+    cmovae eax, [ZERO]
 endm
 
+; Checks if a node is marked as an obstacle 
+; at a given index in the grid.
+;
+; @param  Index of the node 
+; @return Zero in eax if node is an obstacke, otherwise one
 isNotObstacle macro nodeIndex
-    ; Node is obstacle
-    mov eax, 0 
+    ; Node is not an obstacle
+    mov eax, 1 
 
     ; Check if there is an obstacle under the nodeIndex
     mov edi, 1
     cmp [rcx + nodeIndex], edi
-    je is_not_obstacle
-
-    ; Node is not an obstacle
-    mov eax, 1 
-is_not_obstacle::
+    cmove eax, [ZERO]
 endm
 
+; Calculates the new x and y position of 
+; each neighboring node
+;
+; @param reg Register in which the new position is saved
 calculateNewPositionInto macro reg
-    ; Store the postions array
+    ; Set a pointer to postions array
     lea r12, positionsToAdd
     ; Store new x and y position
     lea reg, newPos
@@ -295,7 +345,7 @@ calculateNewPositionInto macro reg
     mov [reg].Pos.y, edi
 endm
 
-;void findPath(int* board, Node* nodes, Path path, BoardDimension boardDimension);
+; void findPath(int* board, Node* nodes, Path path, BoardDimension boardDimension);
 ; board             -> RCX  (Grid)
 ; nodes             -> RDX  (Array of unvisited nodes)
 ; path              -> r8   (Structure holding start and end point)
