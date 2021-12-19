@@ -33,6 +33,7 @@ bld/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
+A-Star/vendor/lib/AStar/
 
 # Imgui savings
 */**/imgui.ini
